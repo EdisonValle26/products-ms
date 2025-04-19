@@ -46,11 +46,10 @@ export class ProductsService extends PrismaClient implements OnModuleInit{
         lastPage: lastPage
       }
     }
-
-
   }
 
   findOne(id: number) {
+    console.log("object");
     return this.product.findUnique({
       where: {id}
     });
