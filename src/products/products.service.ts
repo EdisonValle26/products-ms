@@ -50,6 +50,8 @@ export class ProductsService extends PrismaClient implements OnModuleInit{
 
   findOne(id: number) {
     console.log("object");
+    console.log("2doa");
+
     return this.product.findUnique({
       where: {id}
     });
