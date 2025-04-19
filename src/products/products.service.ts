@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from 'generated/prisma';
 import { PaginationDto } from 'src/common';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -25,7 +25,9 @@ export class ProductsService extends PrismaClient implements OnModuleInit{
     const { page, limit } = paginationDto;
 
     //Permite saber el numero total de paginas que tenemos
-    const totalPages = await this.product.count();
+    const totalPages = await this.product.count({where: {
+      available: true
+    }});
 
     //Permite saber cual es la ultima pagina que tenemos  
     const lastPage = Math.ceil(totalPages / limit);
@@ -38,7 +40,10 @@ export class ProductsService extends PrismaClient implements OnModuleInit{
     return {
       data: await this.product.findMany({
         skip: (page - 1) * limit,
-        take: limit
+        take: limit,
+        where: {
+          available: true
+        }
       }),
       meta: {
         total: totalPages,
@@ -48,17 +53,42 @@ export class ProductsService extends PrismaClient implements OnModuleInit{
     }
   }
 
-  findOne(id: number) {
-    return this.product.findUnique({
-      where: {id}
+  async findOne(id: number) {
+    const product = await this.product.findFirst({
+      where: { id, available: true }
     });
+
+    if(!product)
+      throw new NotFoundException(`El producto con el id #${id} no se encuentra.`);
+
+    return product
   }
 
-  update(id: number, updateProductDto: UpdateProductDto) {
-    return `This action updates a #${id} product`;
+  async update(id: number, updateProductDto: UpdateProductDto) {
+
+    await this.findOne(id);
+
+    return this.product.update({
+      where: {id},
+      data: updateProductDto,
+    })
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} product`;
+  async remove(id: number) {
+    await this.findOne(id);
+
+    const product = await this.product.update({
+      where: {id},
+      data: {
+        available : false
+      }
+    });
+
+    if (!product || !product.available) {
+      this.logger.warn(`Producto con id ${id} no encontrado o ya eliminado.`);
+      throw new NotFoundException(`El producto con el id #${id} no se encuentra o ya fue eliminado.`);
+    }
+
+    return product
   }
 }

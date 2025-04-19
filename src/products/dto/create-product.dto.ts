@@ -10,5 +10,4 @@ export class CreateProductDto {
     @Min(0) //El valor minimo sera 0
     @Type(() => Number) //Tranforma el valor enviado por el post y lo transforma en numero
     public price: number;
-
 }
