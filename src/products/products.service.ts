@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { RpcException } from '@nestjs/microservices';
 import { PrismaClient } from 'generated/prisma';
 import { PaginationDto } from 'src/common';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -33,8 +34,12 @@ export class ProductsService extends PrismaClient implements OnModuleInit{
     const lastPage = Math.ceil(totalPages / limit);
 
     //Usamos BadRequestException para enviar una respuesta de error al cliente
+    //Se cambio a RpcException para enviar una respuesta de error al cliente
     if (totalPages > 0 && page > lastPage) {
-      throw new BadRequestException(`El máximo de páginas es ${lastPage}`);
+      throw new RpcException({
+          message:`El máximo de páginas es ${lastPage}`,
+          status: HttpStatus.BAD_REQUEST
+        });
     }
 
     return {
@@ -57,20 +62,25 @@ export class ProductsService extends PrismaClient implements OnModuleInit{
     const product = await this.product.findFirst({
       where: { id, available: true }
     });
-
+    
     if(!product)
-      throw new NotFoundException(`El producto con el id #${id} no se encuentra.`);
+      throw new RpcException({
+      message: `El producto con el id #${id} no se encuentra.`,
+      status: HttpStatus.BAD_REQUEST
+    });
 
     return product
   }
 
   async update(id: number, updateProductDto: UpdateProductDto) {
 
+    const { id: __, ...data} = updateProductDto
+
     await this.findOne(id);
 
     return this.product.update({
       where: {id},
-      data: updateProductDto,
+      data: data,
     })
   }
 
@@ -86,7 +96,7 @@ export class ProductsService extends PrismaClient implements OnModuleInit{
 
     if (!product || !product.available) {
       this.logger.warn(`Producto con id ${id} no encontrado o ya eliminado.`);
-      throw new NotFoundException(`El producto con el id #${id} no se encuentra o ya fue eliminado.`);
+      throw new RpcException(`El producto con el id #${id} no se encuentra o ya fue eliminado.`);
     }
 
     return product
